@@ -1,0 +1,365 @@
+Antes de inicializar qualquer etapa, se ainda não tiver habilitado o WSL (Windows Subsystem Linux), siga os passos no link abaixo, pois será necessário para utilizar com algumas aplicações adiante:
+https://www.aluiziodeveloper.com.br/ambiente-de-desenvolvimento-no-windows-10-11-com-wsl/
+
+
+**** COMANDOS NestJS ****
+
+---------------------------------------------------------------------------------
+|			Passo a passo para instalar o NestJS: 			|
+---------------------------------------------------------------------------------
+
+1. Para poder inicializar o NestJS, baixe o nest pelo prompt de comando, utilizando os comandos:
+	>> npm i -g @nestjs/cli
+	- Escolha se vai baixar em npm ou yarn e dê enter
+**LEMBRANDO QUE É IMPORTANTE INSTALAR E ATIVAR ANTERIORMENTE O GIT EM SUA MÁQUINA, PORQUE O COMANDO VAI CRIAR AUTOMATICAMENTE UM "NEW PROJECT" PARA O GIT
+****CASO TENHA DUVIDAS, PROCURE UM VÍDEO QUE EXPLICA A INSTALAÇÃO DO GIT
+
+2. Posteriormente, para criar um novo projeto, se direcione dentro do Prompt para ir até a pasta que vai querer criar o novo projeto ou apenas instale localmente digitando:
+	>> nest new project-name
+	- Você pode colocar o nome do seu projeto no lugar de "project-name"
+  
+  2.1. Após criar a pasta do projeto, algumas configurações precisam ser feitas para que não atrapalhe durante a montagem dos seus arquivos.
+  2.2. Caso não tenha ainda, baixe a extensão Prettier no VS Code. Caso já possua, apenas verifique se ele esta pedindo para clicar em "enable".
+  2.3. No arquivo .eslintrc.js, encontre o comando parseOptions e o substitua pelo comando:
+	parserOptions: {
+    	  project: "tsconfig.json",
+    	  tsconfigRootDir: __dirname,
+    	  sourceType: "module",
+  	},
+  
+  2.4. Ainda dentro do arquivo .eslintrc.js, dentro do comando extends, substitua pelo comando:
+	extends: [
+    	  'plugin:@typescript-eslint/recommended',
+    	  'plugin:prettier/recommended',
+    	  'prettier',
+    	  'prettier/@typescript-eslint',
+  	],
+  
+  2.5. Dentro do arquivo tsconfig.json, incluir dentro do comando compilerOptions o comando: "moduleResolution": "node"
+
+3. Após a instalação, acesse a pasta do projeto novo criado e digite:
+	>> npm run start
+
+4. Depois de verificar se o servidor está rodando normalmente, acesse o Postman ou o Insomnia e abra uma rota GET em "localhost:3000" e verifique se é retornado o "Hello World"
+5. Você pode optar manter a utilização pelo prompt de comando, ou acessar a pasta do arquivo direto pelo Visual Studio Code e rodar o comando pelo prompt de lá.
+6. Para poder conectar com um banco de dados, é necessário ter o Docker e rodar o comando:
+	>> npm i typeorm@0.2.29
+	>> npm i typeorm @nestjs/typeorm
+
+7. Caso copie uma pasta pronta e erros de compilação estejam ocorrendo por causa de pastas no node_modules não encontrados, pesquise o erro no google para baixar as bibliotecas npm.
+8. Alguns exemplos de comandos a se utilizar (só se caso for necessário e o NestJS não criar automaticamente):
+	>> npm install --save-dev webpack
+	>> npm i @nestjs/mapped-types
+	>> npm install class-transformer
+
+9. Na pasta app.module.ts, criar um TypeOrmModule.forRoot, importar esse TypeOrmModule e colocar as informações de acesso ao banco no forRoot. Exemplo:
+	import { Module } from '@nestjs/common';
+	import { TypeOrmModule } from '@nestjs/typeorm';
+	import { AppController } from './app.controller';
+	import { AppService } from './app.service';
+	import { CoursesModule } from './courses/courses.module';
+
+	@Module({
+  	  imports: [CoursesModule, TypeOrmModule.forRoot({
+    	    type: 'postgres',
+    	    host: 'db',
+    	    port: 5432,
+    	    username: 'postgres',
+    	    password: 'admin',
+    	    database: 'cursonestjs',
+    	    autoLoadEntities: true,
+    	    synchronize: false,
+  	  })],
+  	  controllers: [AppController],
+  	  providers: [AppService],
+	})
+	export class AppModule {}
+
+
+-------------------------------------------------------------------------------------------------
+|			Comandos para criação de documentos e/ou Controllers: 			|
+-------------------------------------------------------------------------------------------------
+
+
+1. Comando para criar uma pasta courses com arquivos controller através do NestJS
+	>> nest g controller courses
+
+2. Caso queira criar sem os arquivos spec, utilizad o comando da seguinte forma:
+	>> nest g controller courses --no-spec
+
+3. Para poder mostrar a estrutura sem criar nada de fato na pasta (apenas demonstração):
+	>> nest g controller module/courses --dry-run
+
+
+
+-----------------------------------------------------------------------------------------------------------------
+|			Comandos para gerar o banco de dados no Postgres utilizando Docker: 			|
+-----------------------------------------------------------------------------------------------------------------
+
+1. Os passos abaixo servem para criar um banco de dados do zero sem utilizar as migrations criadas na IDE:
+  1.1. Primeiro é necessário criar o banco utilizando o comando:
+	>> docker run --name postgres -e POSTGRES_PASSWORD=(digitar senha) -p 5432(porta do seu pc):5432(porta do docker) -d postgres
+
+  1.2. Após utilizar o comando, verifique se a chave foi criada com sucesso no terminal e olhe no workbench do docker se realmente foi criada
+  1.3. Utilizar o comando:
+	>> docker start postgres
+
+2. Para construr a base de dados através de migrations, é necessário que se crie antes um arquivo Dockerfile (na pasta principal) com as informações necessárias para gerar a imagem. Exemplo:
+	FROM node:14.15.4-alpine3.12
+
+	RUN apk add --no-cache bash
+
+	RUN npm install -g @nestjs/cli
+
+	USER node
+
+	WORKDIR /home/node/app
+
+3. No mesmo local, criar um arquivo docker-compose.yml (lembrando de sempre estar com as extensões devidamente baixadas) conforme o exemplo abaixo:
+	version: "3"
+
+	services:
+  	  app:
+    	    build: .
+    	    entrypoint: .docker/entrypoint.sh
+    	    container_name: cursonestjs-app
+    	    ports:
+     	      - "3001:3000"
+    	    volumes:
+      	      - .:/home/node/app
+    	    depends_on:
+      	      - db
+
+  	  db:
+    	    build: .docker/postgres
+    	    container_name: cursonestjs-db
+    	    restart: always
+    	    tty: true
+    	    ports:
+      	      - "5432:5432"
+    	    volumes:
+      	      - .docker/dbdata:/var/lib/postgresql/data
+    	    environment:
+      	      - POSTGRES_PASSWORD=admin
+      	      - POSTGRES_DB=cursonestjs
+
+  	  pgadmin:
+    	    image: dpage/pgadmin4:latest
+    	    container_name: cursonestjs-pgadmin
+    	    tty: true
+    	    environment:
+      	      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      	      - PGADMIN_DEFAULT_PASSWORD=admin
+    	    ports:
+      	      - "8000:80"
+    	    depends_on:
+      	      - db
+
+4. Após gerar o Dockerfile na pasta principal do projeto (mesmo local onde fica o tsconfig.json), crie uma pasta .dockerfile e crie uma pasta "postgres" dentro.
+5. Na pasta "postgres" (sem aspas), criar outro arquivo Dockerfile com a seguinte informação:
+	FROM postgres
+
+	RUN usermod -u 1000 postgres
+
+6. Criar um arquivo dentro da pasta .docker (e fora da pasta postgres) um arquivo entrypoint.sh com a seguinte informação:
+	#!/bin/bash
+
+	npm install
+	npm run build
+	npx typeorm migration:run
+	npm run start:dev
+
+7. Agora alguns comandos serão necessários ser executados no terminal, antes de gerar as migrations. Os comandos são:
+	>> docker-compose -h  (para verificar as opções de comandos e o que eles fazem)
+	>> docker ps  (para verificar se tem imagens rodando)
+	>> docker-compose up --build  (para executar os comandos do item 6, baixar as imagens que serão criadas e foram definidas no item 3 e criar os containers)
+	** CASO ALGUM ERRO OCORRA DURANTE O >> docker-compose up , PARE A EXECUÇÃO EM ANDAMENTO E USE O COMANDO >> docker-compose down PARA DELETAR A INFORMAÇÃO BAIXADA PORQUE ELA VAI ESTAR INCOMPLETA
+	** OUTROS COMANDOS INTERESSANTES DE SABER:
+		>> docker-compose exec app ls -la  (vai mostrar os arquivos que estão na pasta do container)
+		>> docker-compose exec app pwd  (vai mostrar o caminho da pasta do container)
+		>> docker-compose exec app bash  (vai abrir o bash para poder utilizar os comandos de criação do migration)
+
+8. Criar um arquivo ormconfig.js, para que as migrations sejam alocadas em uma pasta em específico, automaticamente. Exemplo:
+	module.exports = {
+  	  type: 'postgres',
+  	  host: 'db',
+  	  port: 5432,
+  	  username: 'postgres',
+  	  password: 'admin',
+  	  database: 'cursonestjs',
+  	  synchronize: false,
+  	  keepConnectionAlive: true,
+  	  entities: ['dist/**/*.js'],
+  	  migrations: ['dist/migrations/*.js'],
+  	  cli: {
+    	    migrationsDir: 'src/migrations',
+  	  },
+	};
+
+8. Partindo finalmente para as migrations, utilize os seguintes comandos:
+	>>  docker-compose exec app bash  (note que vai aparecer embaixo escrito bash e a versão: bash-5.0$)
+	bash-5.0 $  npx typeorm migration:create -n [NomeDaTabela]
+
+9. Configurar o arquivo de migração criado dentro da pasta migrations. Exemplo:
+	
+	import {MigrationInterface, QueryRunner, Table} from "typeorm";
+
+	export class CreateCoursesTable1649250042704 implements MigrationInterface {
+
+    	  public async up(queryRunner: QueryRunner): Promise<void> {
+            await queryRunner.createTable(new Table({
+              name: 'courses',
+              columns: [
+                  {
+                    name: 'id',
+                    type: 'uuid',
+                    isPrimary: true,
+                  },
+                  {
+                    name: 'name',
+                    type: 'varchar',
+                  },
+                  {
+                    name: 'description',
+                    type: 'varchar',
+                  },
+                  {
+                    name: 'created_at',
+                    type: 'timestamp',
+                    default: 'CURRENT_TIMESTAMP',
+                  }
+                ]
+            }))
+    	  }
+
+    	  public async down(queryRunner: QueryRunner): Promise<void> {
+            await queryRunner.dropTable('courses')
+    	  }
+
+	}
+
+10. Após criar as migrações necessárias, utilizar o comando:
+	>> npx typeorm migration:run
+	**CASO APAREÇA UM ERRO PORQUE ALGUMA OUTRA MIGRAÇÃO ANTIGA ESTÁ BARRANDO A UTILIZAÇÃO, DÊ UM >>docker-compose down E DEPOIS UM >>docker-compose up PARA SUBIR NOVAMENTE
+
+
+
+---------------------------------------------------------------------------------------------------------
+|			Passo a passo para instalar o Prisma (ORM client e studio): 			|
+---------------------------------------------------------------------------------------------------------
+
+1. Começar instalando pela CLI do Prisma, através do comando:
+	>>npm install prisma --save-dev
+
+2. Abrir terminal shell bash ou pelo comando docker-compose exec app bash, ou abrindo o git bash.
+3. Instalar os seguintes pacotes:
+	>> npm install prisma -D
+	>> npx prisma init
+
+4. Abrir o arquivo Schema que foi criado na pasta Prisma e verificar se provider e o url estão corretos.
+5. Abrir o arquivo .env e fazer as alterações do DATABASE_URL que foi criado automaticamente pelo prisma:
+	DATABASE_URL="provider://user:password@localhost:port/dbname?schema=public"	
+
+	** Exemplo: DATABASE_URL="postgresql://postgres:admin@db:5433/prismaapi?schema=public"
+
+6. No arquivo schema, criar o modelo de dados que você quer criar no banco de dados. Exemplo:
+	
+	model User {
+  	  id Int @id @default(autoincrement())
+  	  email String @unique
+  	  name String
+  	  admin Boolean @default(false)
+  	  createdAt DateTime @default(now())
+  	  posts Post[]
+
+  	  @@map("user")
+	}
+
+	model Post {
+  	  id Int @id @default(autoincrement())
+  	  published Boolean @default(false)
+  	  title String @db.VarChar(255)
+  	  content String?
+  	  createdAt DateTime @default(now())
+  	  updatedAt DateTime @default(now())
+  	  author User? @relation(fields: [authorId], references: [id])
+  	  authorId Int?
+
+  	  @@map("post")
+	}
+
+7. Após configurar, abrir o bash dentro do container para rodar os próximos comandos. Para isso execute em um terminal separado (e dentro da pasta do projeto):
+	>> docker-compose exec app bash
+
+8. Com o bash aberto, executar o comando:
+	>> npx prisma migrate dev --name init
+
+9. Para evoluir a sua aplicação, sempre que fizer mudanças na sua database de forma que reflita no seu Prisma Schema, você precisa manualmente re-gerar o Prisma Client para atualizar o codigo gerado no diretório node_modules/.prisma/client:
+	>> prisma generate
+
+10. Também é necessário criar o Prisma Services no seu projeto, através do comando:
+	>> nest g service prisma
+
+11. Dentro do arquivo de serviço na pasta src/prisma/prisma.service.ts, copiar a informação abaixo e colocar no seu arquivo criado:
+	
+	import { INestApplication, Injectable, OnModuleInit } from '@nestjs/common';
+	import { PrismaClient } from '@prisma/client';
+
+	@Injectable()
+	export class PrismaService extends PrismaClient implements OnModuleInit {
+  	  async onModuleInit() {
+    	    await this.$connect();
+  	  }
+
+  	  async enableShutdownHooks(app: INestApplication) {
+    	    this.$on('beforeExit', async () => {
+     	      await app.close();
+    	    });
+  	  }
+	}
+
+12. Daqui em diante estaremos preparando o caminho para acessar o Prisma Studio. Para isso, não é necessário baixar nada, porque o podemos acessá-lo nativamente pela porta 5555
+13. Para isso, caso esteja com o bash aberto, saia dele e dê um docker-compose down. Vamos reinstalar o container assim que realizarmos algumas alterações
+14. No arquivo docker-compose.yml, adicione a porta 5555 no services app da seguinte forma:
+	services:
+  	  app:
+	    //...
+	    
+	    ports:
+	      - "3000:3000"
+	      - "5555:5555"
+	    //...
+
+15. Agora suba novamente o container utilizando o comando >> docker-compose up e, assim que terminar, no outro terminal, executar o comando para acessar o bash novamente: >> docker-compose exec app bash
+16. Exercutar o comando do Prisma Studio dentro do bash:
+	>> npx prisma studio
+
+17. Por fim, acesse o site localhost:5555 e você terá acesso à imagem criada do Prisma Studio
+
+
+---------------------------------------------------------------------------------
+|			Passo a passo para instalar o Swagger: 			|
+---------------------------------------------------------------------------------
+
+1. Para instalar o Swagger, faremos alguns passos iniciais assim como foi feito para o Prisma.
+2. Tendo o Docker instalado, o Dockerfile e o docker-compose.yml devidamente configurados, utilizar o comando docker-compose up para subir o container no servidor.
+3. Após o container criado, em outro terminal, digite o comando: 
+	>> docker-compose exec app bash
+
+4. Dentro do container bash, rodar o comando abaixo para a instalação do Swagger:
+	>> npm install --save @nestjs/swagger swagger-ui-express
+
+5. Feito a instalação da biblioteca, devemos configurar o nosso main.ts, conforme a documentação do Nestjs nos diz. Para isso, insira o código abaixo dentro do arquivo main.ts:
+	const config = new DocumentBuilder()
+    	  .setTitle('Cats example')
+    	  .setDescription('The cats API description')
+    	  .setVersion('1.0')
+    	  .addTag('cats')
+    	  .build();
+  	const document = SwaggerModule.createDocument(app, config);
+  	SwaggerModule.setup('api', app, document);
+
+6. Após configuração, acesse os arquivos de create e update DTO, e também os arquivos de controller.ts, para utilizar as funções de Open API do Swagger. Alguns exemplos de decorators da biblioteca:
+	>> @ApiForbiddenResponse({description: 'Acesso negado'})
+	>> @ApiResponse({ status: 409, description: 'Conflito de email'})
+	>> @ApiTags('Users') //vai separar alguns comandos /get /post /patch /delete em grupos em comum de tags
